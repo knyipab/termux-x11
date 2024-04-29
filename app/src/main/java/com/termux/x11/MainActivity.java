@@ -168,7 +168,12 @@ public class MainActivity extends AppCompatActivity implements View.OnApplyWindo
         mInputHandler = new TouchInputHandler(this, new RenderStub.NullStub() {
             @Override
             public void swipeDown() {
-                toggleExtraKeys();
+                if (SamsungDexUtils.checkDeXEnabled(getApplicationContext())) {
+                    lorieView.releasePointerCapture();
+                    lorieParent.releasePointerCapture();
+                } else {
+                    toggleExtraKeys();
+                }
             }
         }, new InputEventSender(lorieView));
         mLorieKeyListener = (v, k, e) -> {
