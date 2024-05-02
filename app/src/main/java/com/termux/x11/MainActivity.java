@@ -507,6 +507,7 @@ public class MainActivity extends AppCompatActivity implements View.OnApplyWindo
         setTerminalToolbarView();
         onWindowFocusChanged(true);
         LorieView.setClipboardSyncEnabled(p.getBoolean("clipboardEnable", false));
+        lorieView.setWorkaroundGBoardCJK(p.getBoolean("enableGboardCJK", false));
 
         lorieView.triggerCallback();
 

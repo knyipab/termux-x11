@@ -12,14 +12,19 @@ import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
+import android.os.Build;
 import android.preference.PreferenceManager;
+import android.text.InputType;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-
+import android.view.inputmethod.BaseInputConnection;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 
@@ -269,6 +274,48 @@ public class LorieView extends SurfaceView implements InputStub {
             checkForClipboardChange();
         } else
             clipboard.removePrimaryClipChangedListener(clipboardListener);
+    }
+    private InputMethodManager mIMM = (InputMethodManager)getContext().getSystemService( Context.INPUT_METHOD_SERVICE);
+    private String mImeLang = mIMM.getCurrentInputMethodSubtype().getLanguageTag().substring(0, 2);
+    private boolean mImeCJK = mImeLang.equals("zh") || mImeLang.equals("ko") || mImeLang.equals("ja");
+    private boolean enableGBoardCJK;
+    void setWorkaroundGBoardCJK(boolean enabled) {
+        enableGBoardCJK = enabled;
+        mIMM.restartInput(this);
+    }
+    @Override
+    public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+        if (enableGBoardCJK) {
+            mImeLang = mIMM.getCurrentInputMethodSubtype().getLanguageTag().substring(0, 2);
+            mImeCJK = mImeLang.equals("zh") || mImeLang.equals("ko") || mImeLang.equals("ja");
+            outAttrs.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS |
+                    (mImeCJK ? InputType.TYPE_TEXT_VARIATION_NORMAL : InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+            return new BaseInputConnection(this, false) {
+                @Override
+                public boolean requestCursorUpdates(int cursorUpdateMode) {
+                    // workaround for Gboard
+                    // Gboard calls requestCursorUpdates() whenever switching language
+                    // check and then restart keyboard in different inputtype when needed
+                    if (!mIMM.getCurrentInputMethodSubtype().getLanguageTag().substring(0, 2).equals(mImeLang))
+                        mIMM.restartInput(LorieView.this);
+                    return super.requestCursorUpdates(cursorUpdateMode);
+                }
+
+                @Override
+                public boolean commitText(CharSequence text, int newCursorPosition) {
+                    boolean result = super.commitText(text, newCursorPosition);
+                    if (mImeCJK)
+                        // suppress Gboard CJK keyboard suggestion
+                        // this workaround does not work well for non-CJK keyboards
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                            mIMM.invalidateInput(LorieView.this);
+                        else
+                            mIMM.restartInput(LorieView.this);
+                    return result;
+                }
+            };
+        } else
+            return super.onCreateInputConnection(outAttrs);
     }
 
     static native void connect(int fd);
