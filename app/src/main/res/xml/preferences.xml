@@ -171,8 +171,8 @@
             android:key="extra_keys_config" />
 
         <SwitchPreferenceCompat
-            android:title="Workaround for CJK GBoard"
-            android:summary="Enable GBoard Chinese, Japanese and Korean (CJK) keyboard"
+            android:title="Workaround to enable CJK Gboard"
+            android:summary="May require Android 14 and Gboard 14"
             android:defaultValue="false"
             android:key="enableGboardCJK" />
     </PreferenceCategory>

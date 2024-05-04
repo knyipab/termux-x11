@@ -280,14 +280,14 @@ public class LorieView extends SurfaceView implements InputStub {
     private InputMethodManager mIMM = (InputMethodManager)getContext().getSystemService( Context.INPUT_METHOD_SERVICE);
     private String mImeLang;
     private boolean mImeCJK;
-    private boolean enableGBoardCJK;
-    void setWorkaroundGBoardCJK(boolean enabled) {
-        enableGBoardCJK = enabled;
+    private boolean enableGboardCJK;
+    void setWorkaroundGboardCJK(boolean enabled) {
+        enableGboardCJK = enabled;
         mIMM.restartInput(this);
     }
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
-        if (enableGBoardCJK) {
+        if (enableGboardCJK) {
             mImeLang = mIMM.getCurrentInputMethodSubtype().getLanguageTag();
             if (mImeLang.length() > 2)
                 mImeLang = mImeLang.substring(0, 2);
@@ -323,6 +323,7 @@ public class LorieView extends SurfaceView implements InputStub {
                     if (mImeCJK)
                         // suppress Gboard CJK keyboard suggestion
                         // this workaround does not work well for non-CJK keyboards
+                        // , when typing fast and two keypresses (commitText) are close in time
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
                             mIMM.invalidateInput(LorieView.this);
                         else
