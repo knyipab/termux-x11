@@ -31,6 +31,8 @@ import androidx.annotation.NonNull;
 import com.termux.x11.input.InputStub;
 
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.PatternSyntaxException;
 
 @Keep @SuppressLint("WrongConstant")
@@ -276,8 +278,8 @@ public class LorieView extends SurfaceView implements InputStub {
             clipboard.removePrimaryClipChangedListener(clipboardListener);
     }
     private InputMethodManager mIMM = (InputMethodManager)getContext().getSystemService( Context.INPUT_METHOD_SERVICE);
-    private String mImeLang = mIMM.getCurrentInputMethodSubtype().getLanguageTag().substring(0, 2);
-    private boolean mImeCJK = mImeLang.equals("zh") || mImeLang.equals("ko") || mImeLang.equals("ja");
+    private String mImeLang;
+    private boolean mImeCJK;
     private boolean enableGBoardCJK;
     void setWorkaroundGBoardCJK(boolean enabled) {
         enableGBoardCJK = enabled;
@@ -286,18 +288,32 @@ public class LorieView extends SurfaceView implements InputStub {
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
         if (enableGBoardCJK) {
-            mImeLang = mIMM.getCurrentInputMethodSubtype().getLanguageTag().substring(0, 2);
+            mImeLang = mIMM.getCurrentInputMethodSubtype().getLanguageTag();
+            if (mImeLang.length() > 2)
+                mImeLang = mImeLang.substring(0, 2);
             mImeCJK = mImeLang.equals("zh") || mImeLang.equals("ko") || mImeLang.equals("ja");
             outAttrs.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS |
                     (mImeCJK ? InputType.TYPE_TEXT_VARIATION_NORMAL : InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
             return new BaseInputConnection(this, false) {
+                private void checkRestartInput(boolean recheck) {
+                    if (mIMM.getCurrentInputMethodSubtype().getLanguageTag().length() >= 2 && !mIMM.getCurrentInputMethodSubtype().getLanguageTag().substring(0, 2).equals(mImeLang))
+                        mIMM.restartInput(LorieView.this);
+                    else if (recheck) { // recheck needed because sometimes requestCursorUpdates() is called too fast, before InputMethodManager detect change in IM subtype
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                            CompletableFuture.delayedExecutor(40, TimeUnit.MILLISECONDS).execute(() -> { checkRestartInput(false); });
+                        else
+                            new Thread(() -> { try {
+                                Thread.sleep(40);
+                                checkRestartInput(false);
+                            } catch (Exception e) { System.err.println(e); } }).start();
+                    }
+                }
                 @Override
                 public boolean requestCursorUpdates(int cursorUpdateMode) {
                     // workaround for Gboard
                     // Gboard calls requestCursorUpdates() whenever switching language
                     // check and then restart keyboard in different inputtype when needed
-                    if (!mIMM.getCurrentInputMethodSubtype().getLanguageTag().substring(0, 2).equals(mImeLang))
-                        mIMM.restartInput(LorieView.this);
+                    checkRestartInput(true);
                     return super.requestCursorUpdates(cursorUpdateMode);
                 }
 
