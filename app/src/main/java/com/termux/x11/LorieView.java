@@ -205,7 +205,7 @@ public class LorieView extends SurfaceView implements InputStub {
 
     @Override
     public boolean dispatchKeyEventPreIme(KeyEvent event) {
-        if (hardwareKbdScancodesWorkaround) return false;
+        if (hardwareKbdScancodesWorkaround) return super.dispatchKeyEventPreIme(event);
         Activity a = getActivity();
         return (a instanceof MainActivity) && ((MainActivity) a).handleKey(event);
     }
